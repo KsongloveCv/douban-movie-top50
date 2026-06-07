@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>豆瓣电影评分排名 Top 50</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0f0f1a;
+      --card-bg: #1a1a2e;
+      --accent: #e50914;
+      --gold: #f5c518;
+      --text: #e8e8e8;
+      --text-muted: #888;
+      --border: #2a2a3e;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      padding: 40px 20px;
+      text-align: center;
+      border-bottom: 2px solid var(--accent);
+      position: relative;
+    }
+    .header::after {
+      content: "";
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent), var(--gold), var(--accent));
+    }
+    .header h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+    .header h1 span { color: var(--gold); }
+    .header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      padding: 20px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-weight: 500;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #b2070f; transform: translateY(-1px); }
+    .btn-outline {
+      background: transparent;
+      color: var(--gold);
+      border: 1px solid var(--gold);
+    }
+    .btn-outline:hover { background: rgba(245,197,24,0.1); }
+
+    /* Stats */
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      padding: 16px 20px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    .stats span b { color: var(--gold); font-weight: 600; }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 80px 20px;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+    }
+    .spinner {
+      display: inline-block;
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error */
+    .error {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--accent);
+      font-size: 1rem;
+    }
+
+    /* Movie grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Card */
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: transform 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      display: flex;
+      position: relative;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(229,9,20,0.15);
+      border-color: var(--accent);
+    }
+
+    /* Rank badge */
+    .rank-badge {
+      position: absolute;
+      top: 12px; left: 12px;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      z-index: 2;
+    }
+    .rank-badge.top3 {
+      background: linear-gradient(135deg, #f5c518, #e6ac00);
+      color: #000;
+      box-shadow: 0 2px 8px rgba(245,197,24,0.4);
+    }
+    .rank-badge.top10 {
+      background: linear-gradient(135deg, #e50914, #b2070f);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(229,9,20,0.3);
+    }
+    .rank-badge.normal {
+      background: var(--border);
+      color: var(--text-muted);
+    }
+
+    /* Cover */
+    .card-cover {
+      width: 130px;
+      min-height: 180px;
+      object-fit: cover;
+      background: #222;
+      flex-shrink: 0;
+    }
+
+    /* Card body */
+    .card-body {
+      padding: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .card-title a {
+      color: var(--text);
+      text-decoration: none;
+    }
+    .card-title a:hover { color: var(--gold); }
+
+    .card-rating {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .stars {
+      display: flex;
+      gap: 2px;
+    }
+    .star-icon {
+      width: 14px; height: 14px;
+      display: inline-block;
+    }
+    .star-icon.filled { color: var(--gold); }
+    .star-icon.half { color: var(--gold); opacity: 0.5; }
+    .star-icon.empty { color: var(--border); }
+    .rating-num {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .vote-count {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .card-info {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .card-quote {
+      font-size: 0.85rem;
+      color: #ccc;
+      line-height: 1.4;
+      margin-top: auto;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      border-top: 1px solid var(--border);
+    }
+    .footer a { color: var(--gold); text-decoration: none; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+      .header h1 { font-size: 1.5rem; }
+      .stats { gap: 16px; }
+    }
+    @media (max-width: 480px) {
+      .card-cover { width: 100px; min-height: 140px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <h1>豆瓣电影 <span>Top 50</span></h1>
+    <p>评分排名最高的 50 部电影 · 数据实时爬取自豆瓣</p>
+  </header>
+
+  <div class="controls">
+    <button class="btn btn-primary" onclick="loadMovies()">获取数据</button>
+    <button class="btn btn-outline" onclick="refreshData()">刷新缓存</button>
+  </div>
+
+  <div class="stats" id="stats" style="display:none;">
+    <span>共 <b id="totalCount">0</b> 部电影</span>
+    <span>最高评分 <b id="maxRating">0</b></span>
+    <span>平均评分 <b id="avgRating">0</b></span>
+  </div>
+
+  <div id="loading" class="loading" style="display:none;">
+    <div class="spinner"></div>
+    <p>正在从豆瓣获取电影数据，请稍候...</p>
+  </div>
+
+  <div id="error" class="error" style="display:none;"></div>
+
+  <div class="grid" id="movieGrid"></div>
+
+  <footer class="footer">
+    数据来源：<a href="https://movie.douban.com/top250" target="_blank">豆瓣电影 Top 250</a> ·
+    本站仅做数据展示，不存储任何原创内容
+  </footer>
+
+  <script>
+    function renderStars(rating) {
+      const full = Math.floor(rating / 2);
+      const half = (rating / 2) % 1 >= 0.5 ? 1 : 0;
+      const empty = 5 - full - half;
+      let html = "";
+      for (let i = 0; i < full; i++) html += '<span class="star-icon filled">&#9733;</span>';
+      for (let i = 0; i < half; i++) html += '<span class="star-icon half">&#9733;</span>';
+      for (let i = 0; i < empty; i++) html += '<span class="star-icon empty">&#9733;</span>';
+      return html;
+    }
+
+    function getRankClass(rank) {
+      if (rank <= 3) return "top3";
+      if (rank <= 10) return "top10";
+      return "normal";
+    }
+
+    function renderMovies(movies) {
+      const grid = document.getElementById("movieGrid");
+      grid.innerHTML = "";
+
+      movies.forEach(m => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.onclick = () => window.open(m.url, "_blank");
+        card.innerHTML = `
+          <div class="rank-badge ${getRankClass(m.rank)}">${m.rank}</div>
+          <img class="card-cover"
+               src="${m.cover_url || 'https://img3.doubanio.com/f/movie/30c6263b6db26d05fcb0def4f0c37816d6d4f3a7/pics/movie/movie_default_medium.png'}"
+               alt="${m.title}"
+               onerror="this.src='https://img3.doubanio.com/f/movie/30c6263b6db26d05fcb0def4f0c37816d6d4f3a7/pics/movie/movie_default_medium.png'"
+          />
+          <div class="card-body">
+            <div class="card-title"><a href="${m.url}" target="_blank">${m.title}</a></div>
+            <div class="card-rating">
+              <div class="stars">${renderStars(m.rating)}</div>
+              <span class="rating-num">${m.rating}</span>
+              <span class="vote-count">${(m.vote_count / 10000).toFixed(1)}万人评价</span>
+            </div>
+            <div class="card-info">${m.info || ''}</div>
+            ${m.quote ? `<div class="card-quote">"${m.quote}"</div>` : ''}
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function updateStats(movies) {
+      const stats = document.getElementById("stats");
+      stats.style.display = "flex";
+      document.getElementById("totalCount").textContent = movies.length;
+      document.getElementById("maxRating").textContent = Math.max(...movies.map(m => m.rating));
+      document.getElementById("avgRating").textContent = (movies.reduce((s, m) => s + m.rating, 0) / movies.length).toFixed(1);
+    }
+
+    async function loadMovies() {
+      document.getElementById("loading").style.display = "block";
+      document.getElementById("error").style.display = "none";
+      document.getElementById("movieGrid").innerHTML = "";
+
+      try {
+        const res = await fetch("/api/movies");
+        if (!res.ok) throw new Error("Server error");
+        const movies = await res.json();
+        if (movies.error) throw new Error(movies.error);
+        document.getElementById("loading").style.display = "none";
+        renderMovies(movies);
+        updateStats(movies);
+      } catch (e) {
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("error").style.display = "block";
+        document.getElementById("error").textContent = "获取数据失败：" + e.message + "。请稍后重试。";
+      }
+    }
+
+    async function refreshData() {
+      document.getElementById("loading").style.display = "block";
+      document.getElementById("error").style.display = "none";
+
+      try {
+        const res = await fetch("/api/refresh");
+        if (!res.ok) throw new Error("Server error");
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        await loadMovies();
+      } catch (e) {
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("error").style.display = "block";
+        document.getElementById("error").textContent = "刷新失败：" + e.message;
+      }
+    }
+
+    // Auto-load on page load
+    loadMovies();
+  </script>
+
+</body>
+</html>
