@@ -12,3 +12,4 @@ env/
 .env
 *.log
 .DS_Store
+douban_top50.json
